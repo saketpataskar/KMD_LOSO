@@ -1,0 +1,129 @@
+--- Baseline Experiment Results (Unstable Validation) ---
+
+
+--- Running Fold: TEST Subject 1 ---
+Using RANDOM VALIDATION Subject 5
+Score for Test Subject 1: 0.9971
+
+--- Running Fold: TEST Subject 2 ---
+Using RANDOM VALIDATION Subject 13
+Score for Test Subject 2: 0.9834
+
+--- Running Fold: TEST Subject 3 ---
+Using RANDOM VALIDATION Subject 10
+Score for Test Subject 3: 0.9648
+
+--- Running Fold: TEST Subject 4 ---
+Using RANDOM VALIDATION Subject 2
+Score for Test Subject 4: 0.9527
+
+--- Running Fold: TEST Subject 5 ---
+Using RANDOM VALIDATION Subject 10
+Score for Test Subject 5: 0.8907
+
+--- Running Fold: TEST Subject 6 ---
+Using RANDOM VALIDATION Subject 5
+Score for Test Subject 6: 0.8708
+
+--- Running Fold: TEST Subject 7 ---
+Using RANDOM VALIDATION Subject 16
+Score for Test Subject 7: 0.9156
+
+--- Running Fold: TEST Subject 8 ---
+Using RANDOM VALIDATION Subject 19
+Score for Test Subject 8: 0.9431
+
+--- Running Fold: TEST Subject 9 ---
+Using RANDOM VALIDATION Subject 13
+Score for Test Subject 9: 0.9062
+
+--- Running Fold: TEST Subject 10 ---
+Using RANDOM VALIDATION Subject 1
+Score for Test Subject 10: 0.8265
+
+--- Running Fold: TEST Subject 11 ---
+Using RANDOM VALIDATION Subject 1
+Score for Test Subject 11: 0.9968
+
+--- Running Fold: TEST Subject 12 ---
+Using RANDOM VALIDATION Subject 22
+Score for Test Subject 12: 0.9719
+
+--- Running Fold: TEST Subject 13 ---
+Using RANDOM VALIDATION Subject 14
+Score for Test Subject 13: 0.9388
+
+--- Running Fold: TEST Subject 14 ---
+Using RANDOM VALIDATION Subject 6
+Score for Test Subject 14: 0.7678
+
+--- Running Fold: TEST Subject 15 ---
+Using RANDOM VALIDATION Subject 1
+Score for Test Subject 15: 0.9817
+
+--- Running Fold: TEST Subject 16 ---
+Using RANDOM VALIDATION Subject 8
+Score for Test Subject 16: 0.8661
+
+--- Running Fold: TEST Subject 17 ---
+Using RANDOM VALIDATION Subject 30
+Score for Test Subject 17: 0.9837
+
+--- Running Fold: TEST Subject 18 ---
+Using RANDOM VALIDATION Subject 22
+Score for Test Subject 18: 0.9670
+
+--- Running Fold: TEST Subject 19 ---
+Using RANDOM VALIDATION Subject 2
+Score for Test Subject 19: 0.9528
+
+--- Running Fold: TEST Subject 20 ---
+Using RANDOM VALIDATION Subject 3
+Score for Test Subject 20: 0.9633
+
+--- Running Fold: TEST Subject 21 ---
+Using RANDOM VALIDATION Subject 7
+Score for Test Subject 21: 0.9583
+
+--- Running Fold: TEST Subject 22 ---
+Using RANDOM VALIDATION Subject 25
+Score for Test Subject 22: 0.9813
+
+--- Running Fold: TEST Subject 23 ---
+Using RANDOM VALIDATION Subject 15
+Score for Test Subject 23: 0.9785
+
+--- Running Fold: TEST Subject 24 ---
+Using RANDOM VALIDATION Subject 16
+Score for Test Subject 24: 0.9580
+
+--- Running Fold: TEST Subject 25 ---
+Using RANDOM VALIDATION Subject 16
+Score for Test Subject 25: 0.9413
+
+--- Running Fold: TEST Subject 26 ---
+Using RANDOM VALIDATION Subject 13
+Score for Test Subject 26: 0.9821
+
+--- Running Fold: TEST Subject 27 ---
+Using RANDOM VALIDATION Subject 9
+Score for Test Subject 27: 0.9894
+
+--- Running Fold: TEST Subject 28 ---
+Using RANDOM VALIDATION Subject 17
+Score for Test Subject 28: 0.9503
+
+--- Running Fold: TEST Subject 29 ---
+Using RANDOM VALIDATION Subject 7
+Score for Test Subject 29: 0.9680
+
+--- Running Fold: TEST Subject 30 ---
+Using RANDOM VALIDATION Subject 12
+Score for Test Subject 30: 0.9922
+
+
+--- Experiment Complete ---
+Mean Test Accuracy: 0.9447
+Std Dev of Accuracy: 0.0527
+
+Conclusion: Low standard deviation. The features are highly generalizable.

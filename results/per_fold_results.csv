@@ -1,2 +1,3 @@
-test_subject,experiment,model,best_cv_acc,test_accuracy,test_macro_f1,per_class_f1,confusion_matrix,best_epoch,val_subjects,best_params
-1,RandomForest,rf,0.9366374552307837,0.9740634005763689,0.9709983274212006,"[0.9947643979057592, 0.9724770642201835, 0.9791666666666666, 0.9494949494949495, 0.9504950495049505, 0.9795918367346939]","[[95, 0, 0, 0, 0, 0], [0, 53, 0, 0, 0, 0], [1, 1, 47, 0, 0, 0], [0, 0, 0, 47, 0, 0], [0, 0, 0, 5, 48, 0], [0, 2, 0, 0, 0, 48]]",,[],"{'max_depth': 20, 'min_samples_leaf': 2, 'n_estimators': 300}"
+version https://git-lfs.github.com/spec/v1
+oid sha256:d382a4dac4832f035f9ea8022fe030a75abb2abfc56ea095ea9828419e92cea9
+size 533

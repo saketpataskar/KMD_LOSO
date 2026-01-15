@@ -7,6 +7,8 @@ from utils import load_npz, fit_channel_scaler, apply_channel_scaler, compute_me
 from dataset import UCIHARDataset
 from models import HAR_CNN, HAR_LSTM, HAR_CNN_LSTM
 from trainer import run_train_validation
+from models import HAR_CNN, HAR_LSTM, HAR_CNN_LSTM, HAR_InceptionTime
+
 
 def run_baseline(npz_path, output_dir, model_name="CNN", device="cuda"):
     X, y, subjects, idx_map = load_npz(npz_path)
@@ -37,6 +39,10 @@ def run_baseline(npz_path, output_dir, model_name="CNN", device="cuda"):
         ds_train = UCIHARDataset(X_train_s, y_train, channels_first=False)
         ds_test = UCIHARDataset(X_test_s, y_test, channels_first=False)
         model = HAR_CNN_LSTM(in_channels=X.shape[2], num_classes=len(np.unique(y)))
+    elif model_name.upper() == "INCEPTIONTIME":
+        ds_train = UCIHARDataset(X_train_s, y_train, channels_first=True)
+        ds_test = UCIHARDataset(X_test_s, y_test, channels_first=True)
+        model = HAR_InceptionTime(in_channels=X.shape[2], num_classes=len(np.unique(y)))
 
     device = torch.device(device if torch.cuda.is_available() else "cpu")
 

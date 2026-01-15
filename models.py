@@ -55,3 +55,75 @@ class HAR_CNN_LSTM(nn.Module):
         out = out[:, -1, :]
         out = self.fc(out)
         return out
+
+# -----------------------------
+# InceptionTime Blocks
+# -----------------------------
+
+class InceptionModule(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_sizes=(9, 19, 39), bottleneck_channels=32):
+        super().__init__()
+
+        self.use_bottleneck = in_channels > 1
+        if self.use_bottleneck:
+            self.bottleneck = nn.Conv1d(in_channels, bottleneck_channels, kernel_size=1, bias=False)
+            conv_input_channels = bottleneck_channels
+        else:
+            conv_input_channels = in_channels
+
+        self.conv_list = nn.ModuleList([
+            nn.Conv1d(conv_input_channels, out_channels, kernel_size=k, padding=k // 2, bias=False)
+            for k in kernel_sizes
+        ])
+
+        self.maxpool = nn.MaxPool1d(kernel_size=3, stride=1, padding=1)
+        self.conv_pool = nn.Conv1d(in_channels, out_channels, kernel_size=1, bias=False)
+
+        self.bn = nn.BatchNorm1d(out_channels * (len(kernel_sizes) + 1))
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        # Bottleneck
+        if self.use_bottleneck:
+            x_bottleneck = self.bottleneck(x)
+        else:
+            x_bottleneck = x
+
+        conv_outputs = [conv(x_bottleneck) for conv in self.conv_list]
+        pool_out = self.conv_pool(self.maxpool(x))
+
+        x = torch.cat(conv_outputs + [pool_out], dim=1)
+        x = self.bn(x)
+        x = self.relu(x)
+        return x
+
+
+# -----------------------------
+# InceptionTime Network
+# -----------------------------
+
+class HAR_InceptionTime(nn.Module):
+    def __init__(self, in_channels=9, num_classes=6, num_modules=3, out_channels=32):
+        super().__init__()
+
+        modules = []
+        current_channels = in_channels
+
+        for _ in range(num_modules):
+            module = InceptionModule(
+                in_channels=current_channels,
+                out_channels=out_channels
+            )
+            modules.append(module)
+            current_channels = out_channels * 4  # 3 convs + 1 pool branch
+
+        self.inception_stack = nn.Sequential(*modules)
+        self.global_pool = nn.AdaptiveAvgPool1d(1)
+        self.fc = nn.Linear(current_channels, num_classes)
+
+    def forward(self, x):
+        # x: (B, C, T)
+        x = self.inception_stack(x)
+        x = self.global_pool(x).squeeze(-1)
+        x = self.fc(x)
+        return x

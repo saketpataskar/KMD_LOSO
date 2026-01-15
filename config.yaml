@@ -1,0 +1,40 @@
+dataset:
+  name: "HARTH"   # HAR | HARTH
+  npz_path: "C:/KMD/KMD_LOSO/harth_windows.npz"
+
+experiment:
+  mode: "cv"                 # baseline | cv
+  device: "cuda"
+
+  models:
+    - "CNNLSTM"
+
+  cv_types:
+    - "GroupKFold"
+    # - "Stratified"
+    # - "LOSO"
+
+paths:
+  results_root:
+    HAR: "D:/DKE/KMD/KMD_LOSO/results"
+    HARTH: "C:/KMD/KMD_LOSO/results_harth"
+
+  baseline_root:
+    HAR: "D:/DKE/KMD/KMD_LOSO"
+    HARTH: "C:/KMD/KMD_LOSO"
+
+baseline:
+  enabled: false
+
+analysis:
+  model_name: "CNNLSTM"
+  methods:
+    - "KFold"
+    - "Stratified"
+    - "GroupKFold"
+    - "LOSO"
+
+  output_root:
+    HAR: "D:/DKE/KMD/KMD_LOSO/analysis_outputs"
+    HARTH: "C:/KMD/KMD_LOSO/analysis_outputs"
+

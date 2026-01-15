@@ -1,25 +1,51 @@
 # plot_results.py
 import os
 import json
+import yaml
 import numpy as np
 import matplotlib.pyplot as plt
 
 # ==========================
-# CONFIG – EDIT THIS PER MODEL
+# LOAD CONFIG
 # ==========================
 
-# For CNN:
-OUT_DIR = r"D:/DKE/KMD/KMD_LOSO/analysis_outputs_CNN"
+CONFIG_PATH = "config.yaml"
 
-# For LSTM:
-# OUT_DIR = r"D:/DKE/KMD/KMD_LOSO/analysis_outputs_LSTM"
+with open(CONFIG_PATH, "r") as f:
+    cfg = yaml.safe_load(f)
 
-# For CNN-LSTM:
-# OUT_DIR = r"D:/DKE/KMD/KMD_LOSO/analysis_outputs_CNNLSTM"
+DATASET = cfg["dataset"]["name"]              # HAR | HARTH
+MODEL_NAME = cfg["analysis"]["model_name"]
 
-# Class names for UCI HAR (labels 0..5)
-CLASS_NAMES = ["Walk", "WalkUp", "WalkDown", "Sit", "Stand", "Lay"]
+OUT_ROOT = cfg["analysis"]["output_root"][DATASET]
+OUT_DIR = os.path.join(OUT_ROOT, f"analysis_outputs_{MODEL_NAME}_{DATASET.lower()}")
 
+# ==========================
+# CLASS NAMES (DATASET-DEPENDENT)
+# ==========================
+
+CLASS_NAMES_MAP = {
+    "HAR": ["Walk", "WalkUp", "WalkDown", "Sit", "Stand", "Lay"],
+    "HARTH": [
+        "sitting",
+        "walking",
+        "standing",
+        "cycling (sit)",
+        "lying",
+        "running",
+        "shuffling",
+        "transport (sit)",
+        "stairs (ascending)",
+        "stairs (descending)",
+        "cycling (stand)",
+        "transport (stand)",
+    ],
+}
+
+if DATASET not in CLASS_NAMES_MAP:
+    raise ValueError(f"Unknown dataset: {DATASET}")
+
+CLASS_NAMES = CLASS_NAMES_MAP[DATASET]
 
 # ==========================
 # UTILS
@@ -28,8 +54,7 @@ CLASS_NAMES = ["Walk", "WalkUp", "WalkDown", "Sit", "Stand", "Lay"]
 def load_aggregated_metrics(path):
     if not os.path.exists(path):
         raise FileNotFoundError(
-            f"Aggregated metrics JSON not found at {path}. "
-            f"Run analysis_results.py for this model first."
+            f"Aggregated metrics JSON not found at {path}. Run analysis_results.py first."
         )
     with open(path, "r") as f:
         return json.load(f)
@@ -38,7 +63,7 @@ def load_aggregated_metrics(path):
 def load_summary_rows(csv_path):
     rows = []
     if not os.path.exists(csv_path):
-        print(f"Warning: {csv_path} not found. Some plots will be skipped.")
+        print(f"Warning: {csv_path} not found. Some plots skipped.")
         return rows
 
     try:
@@ -50,24 +75,16 @@ def load_summary_rows(csv_path):
         with open(csv_path, "r") as f:
             reader = csv.DictReader(f)
             for r in reader:
-                # cast numeric columns
                 if "n_folds" in r and r["n_folds"] != "":
                     r["n_folds"] = int(r["n_folds"])
                 for k in [
-                    "mean_macro_f1",
-                    "std_macro_f1",
-                    "mean_accuracy",
-                    "std_accuracy",
-                    "mean_early_stop_epoch",
-                    "std_early_stop_epoch",
+                    "mean_macro_f1", "std_macro_f1",
+                    "mean_accuracy", "std_accuracy",
+                    "mean_early_stop_epoch", "std_early_stop_epoch"
                 ]:
-                    if k in r and r[k] not in ("", "nan", None):
-                        r[k] = float(r[k])
-                    else:
-                        r[k] = None
+                    r[k] = float(r[k]) if r.get(k) not in ("", None, "nan") else None
                 rows.append(r)
     return rows
-
 
 # ==========================
 # PLOTTING HELPERS
@@ -133,6 +150,12 @@ def plot_per_class_f1(all_methods, rows, out_dir, class_names):
         print("No summary rows, skipping per-class F1 plot.")
         return
 
+    print("\n=== DEBUG: per_class_f1s fold lengths ===")
+    for method, m in all_methods.items():
+        pcs = m.get("per_class_f1s", [])
+        if isinstance(pcs, list):
+            print(method, "->", [len(x) if isinstance(x, list) else "INVALID" for x in pcs])
+
     methods = []
     per_class_means = []
 
@@ -143,25 +166,38 @@ def plot_per_class_f1(all_methods, rows, out_dir, class_names):
         m = all_methods[name]
 
         if name == "Baseline":
-            pc = np.array(m["per_class_f1"], dtype=float)
-        else:
-            pcs = np.array(m["per_class_f1s"], dtype=float)  # shape (F, C)
-            if pcs.ndim != 2:
+            if "per_class_f1" not in m:
                 continue
+            pc = np.array(m["per_class_f1"], dtype=float)
+
+        else:
+            pcs_raw = m.get("per_class_f1s", [])
+
+            pcs_clean = [
+                row for row in pcs_raw
+                if isinstance(row, (list, tuple)) and len(row) == len(class_names)
+            ]
+
+            if not pcs_clean:
+                print(f"Skipping {name}: invalid per_class_f1s shapes -> {[len(r) for r in pcs_raw]}")
+                continue
+
+            pcs = np.array(pcs_clean, dtype=float)
             pc = pcs.mean(axis=0)
+
         methods.append(name)
         per_class_means.append(pc)
 
     if not per_class_means:
-        print("No per-class F1 data found, skipping.")
+        print("No valid per-class F1 data found, skipping.")
         return
 
-    per_class_means = np.stack(per_class_means, axis=0)  # (M, C)
+    per_class_means = np.stack(per_class_means, axis=0)
     M, C = per_class_means.shape
     x = np.arange(C)
     width = 0.8 / max(M, 1)
 
-    plt.figure(figsize=(10, 5))
+    plt.figure(figsize=(max(10, C), 5))
     for i, method in enumerate(methods):
         plt.bar(x + i * width, per_class_means[i], width=width, label=method)
     plt.xticks(x + width * (M - 1) / 2, class_names, rotation=25, ha="right")
@@ -176,20 +212,15 @@ def plot_per_class_f1(all_methods, rows, out_dir, class_names):
     print("Saved:", out_path)
 
 
-def plot_confusion_matrix(cm, classes, title, out_path, normalize=True):
-    """
-    Pretty confusion matrix with better colours, optional normalization,
-    and value annotations (ideal for academic figures).
-    """
-    import matplotlib.pyplot as plt
-    import numpy as np
+# ==========================
+# FIXED CONFUSION MATRIX (NO % SIGN)
+# ==========================
 
+def plot_confusion_matrix(cm, classes, title, out_path, normalize=True):
     cm = np.array(cm, dtype=float)
 
-    # Normalize rows to sum to 1 (per-class accuracy view)
     if normalize:
         row_sums = cm.sum(axis=1, keepdims=True)
-        # avoid division by zero
         row_sums[row_sums == 0.0] = 1.0
         cm = cm / row_sums
 
@@ -203,12 +234,14 @@ def plot_confusion_matrix(cm, classes, title, out_path, normalize=True):
     plt.xticks(tick_marks, classes, rotation=45, ha="right", fontsize=10)
     plt.yticks(tick_marks, classes, fontsize=10)
 
-    # Add numeric annotations
     thresh = cm.max() * 0.65
     for i in range(cm.shape[0]):
         for j in range(cm.shape[1]):
             val = cm[i, j]
-            txt = f"{val*100:.1f}%" if normalize else f"{val:.2f}"
+
+            # FIX: show clean decimal (no percentage sign)
+            txt = f"{val:.2f}"
+
             plt.text(
                 j, i, txt,
                 ha="center", va="center",
@@ -224,45 +257,29 @@ def plot_confusion_matrix(cm, classes, title, out_path, normalize=True):
     print("Saved:", out_path)
 
 
-
-
 def plot_confusion_matrices_selected(all_methods, out_dir, class_names,
                                      methods_to_plot=None):
-    """
-    Generate confusion matrices for all requested methods:
-    - Baseline: uses its single confusion_matrix
-    - CV methods: average confusion matrices over folds, then plot
-
-    This is useful to visually compare all CV types:
-    Baseline vs KFold vs Stratified vs GroupKFold vs LOSO.
-    """
-    import numpy as np
-    import os
-
-    # Default: all methods we care about
     if methods_to_plot is None:
         methods_to_plot = ["Baseline", "KFold", "Stratified", "GroupKFold", "LOSO"]
 
     for name in methods_to_plot:
         if name not in all_methods:
-            print(f"{name} not found in aggregated metrics, skipping CM.")
+            print(f"{name} not found, skipping CM.")
             continue
 
         m = all_methods[name]
 
         if name == "Baseline":
-            # Single confusion matrix from baseline metrics.json
             if "confusion_matrix" not in m:
                 print(f"No confusion_matrix for {name}, skipping.")
                 continue
             cm = np.array(m["confusion_matrix"], dtype=float)
+
         else:
-            # For CV methods, we have a list of confusion matrices (one per fold)
-            cms = np.array(m.get("confusion_mats", []), dtype=float)  # (F, C, C)
+            cms = np.array(m.get("confusion_mats", []), dtype=float)
             if cms.ndim != 3 or cms.shape[0] == 0:
                 print(f"No confusion_mats for {name}, skipping.")
                 continue
-            # Mean confusion matrix across folds
             cm = cms.mean(axis=0)
 
         out_path = os.path.join(out_dir, f"confusion_{name}.png")
@@ -275,11 +292,11 @@ def plot_confusion_matrices_selected(all_methods, out_dir, class_names,
         )
 
 
-
 def plot_loso_subject_f1(all_methods, out_dir):
     if "LOSO" not in all_methods:
         print("LOSO not found, skipping LOSO subject-wise plot.")
         return
+
     m = all_methods["LOSO"]
     f1s = np.array(m.get("macro_f1s", []), dtype=float)
     if f1s.size == 0:
@@ -289,7 +306,7 @@ def plot_loso_subject_f1(all_methods, out_dir):
     x = np.arange(len(f1s))
     plt.figure(figsize=(10, 4))
     plt.bar(x, f1s)
-    plt.xlabel("LOSO Fold (approx. subject index)", fontsize=11)
+    plt.xlabel("LOSO Fold (subject index)", fontsize=11)
     plt.ylabel("Macro F1", fontsize=11)
     plt.title("LOSO: Subject-wise Macro F1", fontsize=13)
     plt.grid(axis="y", linestyle="--", alpha=0.5)
@@ -312,13 +329,14 @@ def plot_early_stopping(all_methods, rows, out_dir):
         es = all_methods[name].get("early_stop_epochs", [])
         if not es:
             continue
+
         es_arr = np.array(es, dtype=float)
         methods.append(name)
         means.append(es_arr.mean())
         stds.append(es_arr.std())
 
     if not methods:
-        print("No early stopping data, skipping early stop plot.")
+        print("No early stopping data, skipping.")
         return
 
     x = np.arange(len(methods))
@@ -348,23 +366,11 @@ def main():
     rows = load_summary_rows(summary_csv)
     all_methods = load_aggregated_metrics(aggregated_json)
 
-    # 1) Overall performance comparison (RQ2)
     plot_mean_macro_f1(rows, OUT_DIR)
-
-    # 2) Fold-wise F1 distribution (robustness / subject imbalance → RQ1)
     plot_fold_macro_f1_boxplots(all_methods, OUT_DIR)
-
-    # 3) Per-class F1 (class imbalance → RQ1)
     plot_per_class_f1(all_methods, rows, OUT_DIR, CLASS_NAMES)
-
-    # 4) Confusion matrices: Baseline vs LOSO (RQ1 & RQ2)
-    plot_confusion_matrices_selected(all_methods, OUT_DIR, CLASS_NAMES,
-                                     methods_to_plot=["Baseline", "KFold", "Stratified", "GroupKFold", "LOSO"])
-
-    # 5) LOSO subject-wise F1 (subject imbalance → RQ1)
+    plot_confusion_matrices_selected(all_methods, OUT_DIR, CLASS_NAMES)
     plot_loso_subject_f1(all_methods, OUT_DIR)
-
-    # 6) Early stopping comparison (training dynamics → RQ3)
     plot_early_stopping(all_methods, rows, OUT_DIR)
 
     print("\nAll plots generated into:", OUT_DIR)

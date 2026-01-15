@@ -6,6 +6,8 @@ from utils import load_npz, get_kfold_splits, get_stratified_splits, get_groupkf
 from dataset import UCIHARDataset
 from models import HAR_CNN, HAR_LSTM, HAR_CNN_LSTM
 from trainer import run_train_validation
+from models import HAR_CNN, HAR_LSTM, HAR_CNN_LSTM, HAR_InceptionTime
+
 
 def run_cv(npz_path, output_dir, cv_type="LOSO", model_name="CNN", n_splits=5, device="cuda"):
     X, y, subjects, idx_map = load_npz(npz_path)
@@ -45,6 +47,10 @@ def run_cv(npz_path, output_dir, cv_type="LOSO", model_name="CNN", n_splits=5, d
             ds_train = UCIHARDataset(X_train_s, y_train, transform=None, channels_first=False)  # model expects (B,T,C)
             ds_val = UCIHARDataset(X_val_s, y_val, transform=None, channels_first=False)
             model = HAR_CNN_LSTM(in_channels=X.shape[2], num_classes=len(np.unique(y)))
+        elif model_name.upper() == "INCEPTIONTIME":
+            ds_train = UCIHARDataset(X_train_s, y_train, transform=None, channels_first=True)
+            ds_val = UCIHARDataset(X_val_s, y_val, transform=None, channels_first=True)
+            model = HAR_InceptionTime(in_channels=X.shape[2], num_classes=len(np.unique(y)))
         else:
             raise ValueError("Unknown model_name")
 

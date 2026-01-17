@@ -12,26 +12,30 @@ def load_config(path: str):
 def main():
     cfg = load_config("config.yaml")
 
+    dataset = cfg["dataset"]["name"]
     npz_path = cfg["dataset"]["npz_path"]
-    model_name = cfg["experiment"]["model_name"]
-    device = cfg["experiment"].get("device", "cuda")
-    out_dir = cfg["output"]["out_dir"]
 
-    mode = cfg["experiment"]["mode"]
+    mode = cfg["experiment"]["mode"]          # baseline | cv
+    model_name = cfg["experiment"]["model"]
+    device = cfg["experiment"].get("device", "cuda")
 
     if mode == "baseline":
+        out_dir = cfg["paths"]["baseline_root"][dataset] + f"/baseline_results_{model_name}_{dataset.lower()}"
+
         run_baseline(
-            npz_path,
-            out_dir,
+            npz_path=npz_path,
+            output_dir=out_dir,
             model_name=model_name,
             device=device
         )
 
     elif mode == "cv":
         cv_type = cfg["experiment"]["cv_type"]
+        out_dir = cfg["paths"]["results_root"][dataset]
+
         run_cv(
-            npz_path,
-            out_dir,
+            npz_path=npz_path,
+            output_dir=out_dir,
             cv_type=cv_type,
             model_name=model_name,
             device=device

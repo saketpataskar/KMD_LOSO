@@ -1,21 +1,180 @@
 import os
 import glob
+from pathlib import Path
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+from matplotlib.ticker import ScalarFormatter
+
+# -----------------------------
+# Plot Styling (Academic / PPT Ready)
+# -----------------------------
+def set_plot_style():
+    mpl.rcParams.update({
+        "font.family": "serif",
+        "font.size": 11,
+        "axes.titlesize": 14,
+        "axes.labelsize": 12,
+        "xtick.labelsize": 10,
+        "ytick.labelsize": 10,
+        "axes.grid": False,
+        "figure.dpi": 120,
+        "savefig.dpi": 300
+    })
+
+set_plot_style()
 
 # -----------------------------
 # Configuration
 # -----------------------------
-data_folder = "harth"   # relative path to dataset folder
-results_folder = "data_stats/harth"        # where CSVs & plots are saved
-label_col = "label"               # HARTH label column
-subject_col = "subject"           # added subject identifier column
-plot_top_k_subjects = None        # set to an int to plot only top-K subjects
+data_folder = "harth"
+results_folder = "data_stats/harth"
+label_col = "label"
+subject_col = "subject"
+DATASET_NAME = "HARTH Dataset"
+
+# Optional: limit subjects shown
+plot_top_k_subjects = None
+
+# Label map file (citation-safe)
+LABEL_MAP_FILE = os.path.join(data_folder, "activity_map.csv")
 
 os.makedirs(results_folder, exist_ok=True)
+out = Path(results_folder)
 
 # -----------------------------
-# 1. Load CSVs & combine them
+# Load Activity Label Map (CSV or Fallback)
+# -----------------------------
+if os.path.exists(LABEL_MAP_FILE):
+    label_map_df = pd.read_csv(LABEL_MAP_FILE)
+    ACTIVITY_MAP = dict(zip(label_map_df["label"], label_map_df["name"]))
+    print("Loaded activity labels from activity_map.csv")
+else:
+    print("activity_map.csv not found — using built-in HARTH label map")
+
+    ACTIVITY_MAP = {
+        1: "walking",
+        2: "running",
+        3: "shuffling",
+        4: "transport (sit)",
+        5: "stairs (ascending)",
+        6: "standing",
+        7: "sitting",
+        8: "cycling (sit)",
+        13: "lying",
+        14: "stairs (descending)",
+        130: "cycling stand",
+        140: "transport stand"
+    }
+
+# -----------------------------
+def pretty_barplot(
+    labels,
+    values,
+    title,
+    xlabel,
+    ylabel,
+    save_path,
+    percent=None,
+    y_max=None,
+    y_scale_power=None
+):
+    fig, ax = plt.subplots(figsize=(11, 5))
+
+    values = np.array(values, dtype=float)
+
+    # -----------------------------
+    # Apply scaling if requested
+    # -----------------------------
+    scale_factor = 1
+    if y_scale_power is not None:
+        scale_factor = 10 ** y_scale_power
+
+    scaled_values = values / scale_factor
+    max_val = max(scaled_values)
+
+    x = np.arange(len(labels))
+
+    base_color = "#4C72B0"
+    highlight_color = "#DD8452"
+
+    bars = ax.bar(x, scaled_values, width=0.65, color=base_color, zorder=3)
+
+    # Highlight dominant bar
+    max_idx = np.argmax(scaled_values)
+    bars[max_idx].set_color(highlight_color)
+
+    # Soft shadow
+    for i, v in enumerate(scaled_values):
+        ax.bar(x[i] + 0.03, v, width=0.65, color="black", alpha=0.06, zorder=2)
+
+    # Grid & spines
+    ax.set_axisbelow(True)
+    ax.yaxis.grid(True, linestyle="--", alpha=0.3)
+    ax.xaxis.grid(False)
+
+    for spine in ["top", "right"]:
+        ax.spines[spine].set_visible(False)
+
+    ax.spines["left"].set_alpha(0.4)
+    ax.spines["bottom"].set_alpha(0.4)
+
+    # Titles & labels
+    ax.set_title(title, fontsize=16, weight="bold", pad=15)
+    ax.set_xlabel(xlabel, fontsize=12, labelpad=14)
+
+    if y_scale_power:
+        ax.set_ylabel(f"{ylabel} (×10^{y_scale_power})", fontsize=12, labelpad=10)
+    else:
+        ax.set_ylabel(ylabel, fontsize=12, labelpad=10)
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, rotation=35, ha="right")
+
+    # Auto-scale Y-axis
+    if y_max is None:
+        ax.set_ylim(0, max_val * 1.20)
+    else:
+        ax.set_ylim(0, y_max / scale_factor)
+
+    # -----------------------------
+    # Labels above bars
+    # -----------------------------
+    for i, bar in enumerate(bars):
+        h = bar.get_height()
+        txt = f"{percent[i]:.1f}%" if percent is not None else f"{h:.1f}"
+
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            h + max_val * 0.02,
+            txt,
+            ha="center",
+            va="bottom",
+            fontsize=8,
+            rotation=45,
+            color="black",
+            zorder=5
+        )
+
+    # Caption
+    fig.text(
+        0.99, 0.01,
+        f"Figure: {title}",
+        ha="right",
+        va="bottom",
+        fontsize=9,
+        color="gray"
+    )
+
+    plt.subplots_adjust(bottom=0.25)
+    plt.tight_layout()
+    plt.savefig(save_path)
+    plt.savefig(str(save_path).replace(".png", ".pdf"))
+    plt.close()
+
+# -----------------------------
+# 1. Load CSVs
 # -----------------------------
 csv_files = glob.glob(os.path.join(data_folder, "*.csv"))
 if not csv_files:
@@ -29,144 +188,97 @@ for file in csv_files:
     df_list.append(tmp)
 
 df = pd.concat(df_list, ignore_index=True)
+
 print("Loaded dataframe shape:", df.shape)
 print(df.head())
+# -----------------------------
 
 # -----------------------------
 # 2. Missing values
 # -----------------------------
 missing_values = df.isnull().sum()
-total_missing = missing_values.sum()
+missing_values.to_csv(out / "missing_values.csv", header=["missing_count"])
 
-print("\nMissing values per column:\n", missing_values)
-print("Total missing:", total_missing)
-
-# Save to CSV
-missing_values.to_csv(os.path.join(results_folder, "missing_values.csv"), header=["missing_count"])
-
-# =====================================================================
-# 3. CHECK FOR INCORRECT / INVALID VALUES
-# =====================================================================
-
+# -----------------------------
+# 3. Invalid values
+# -----------------------------
 numeric_cols = ['back_x', 'back_y', 'back_z', 'thigh_x', 'thigh_y', 'thigh_z']
+numeric = df[numeric_cols].apply(pd.to_numeric, errors="coerce")
 
-# 3.1 Non-numeric value detection
-invalid_numeric = {}
-for col in numeric_cols:
-    invalid = df[col].apply(lambda x: isinstance(x, str)).sum()
-    invalid_numeric[col] = invalid
+invalid_summary = {
+    "non_numeric": int((numeric.isna() & df[numeric_cols].notna()).to_numpy().sum()),
+    "out_of_range": int(((numeric < -16) | (numeric > 16)).to_numpy().sum()),
+    "duplicates": int(df.duplicated().sum())
+}
 
-print("\nNon-numeric values in numeric sensor columns:")
-print(invalid_numeric)
+pd.Series(invalid_summary).to_csv(out / "invalid_value_summary.csv")
 
-# 3.2 Out-of-range accelerometer values (HARTH uses ±16g)
-invalid_range = {}
-for col in numeric_cols:
-    invalid_low = df[df[col] < -16].shape[0]
-    invalid_high = df[df[col] > 16].shape[0]
-    invalid_range[col] = invalid_low + invalid_high
-
-print("\nOut-of-range accelerometer values (outside ±16g):")
-print(invalid_range)
-
-# 3.3 Duplicate rows
-duplicate_rows = df.duplicated().sum()
-print("\nNumber of duplicated rows:", duplicate_rows)
-
-# 3.4 Invalid timestamps
+# -----------------------------
+# Timestamp checks
+# -----------------------------
 df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
-invalid_timestamps = df['timestamp'].isna().sum()
 
-print("\nInvalid timestamp values:", invalid_timestamps)
+invalid_timestamps = int(df['timestamp'].isna().sum())
+pd.Series({"invalid_timestamps": invalid_timestamps}).to_csv(out / "invalid_timestamps.csv")
 
-# Non-monotonic timestamps per subject
 timestamp_violations = {}
-for subj in df["subject"].unique():
-    sub_df = df[df["subject"] == subj]
-    non_mono = (sub_df['timestamp'].diff() < pd.Timedelta(0)).sum()
+for subj in df[subject_col].unique():
+    sub_df = df[df[subject_col] == subj]
+    non_mono = int((sub_df['timestamp'].diff() < pd.Timedelta(0)).sum())
     timestamp_violations[subj] = non_mono
 
-print("\nNon-monotonic timestamps per subject:")
-print(timestamp_violations)
-
-# 3.5 Save incorrect value summary
-invalid_summary = pd.DataFrame({
-    "non_numeric": invalid_numeric,
-    "out_of_range": invalid_range
-})
-invalid_summary.to_csv(os.path.join(results_folder, "invalid_value_summary.csv"))
-
-print("\nIncorrect value check complete. Summary saved to invalid_value_summary.csv")
+pd.Series(timestamp_violations).to_csv(out / "timestamp_violations.csv")
 
 # -----------------------------
 # 4. Class distribution
 # -----------------------------
-if label_col not in df.columns:
-    raise KeyError(f"Label column '{label_col}' not found.")
-
 class_counts = df[label_col].value_counts().sort_index()
-class_percent = (df[label_col].value_counts(normalize=True).sort_index() * 100)
+class_percent = class_counts / class_counts.sum() * 100
 
-print("\nClass counts:\n", class_counts)
-print("\nClass percentages (%):\n", class_percent.round(2))
+class_counts.to_csv(out / "class_distribution_samples.csv", header=["samples"])
+class_percent.to_csv(out / "class_distribution_percent.csv", header=["percent"])
 
-# Save to CSV
-class_counts.to_csv(os.path.join(results_folder, "class_distribution_counts.csv"), header=["count"])
-class_percent.to_csv(os.path.join(results_folder, "class_distribution_percent.csv"), header=["percent"])
+class_labels_named = [
+    ACTIVITY_MAP.get(lbl, f"Class {lbl}")
+    for lbl in class_counts.index
+]
 
-# Plot: Class imbalance
-plt.figure(figsize=(10, 6))
-bars = plt.bar(class_counts.index.astype(str), class_counts.values)
-plt.xlabel("Class label")
-plt.ylabel("Count")
-plt.title("Class Distribution")
-
-for bar, pct in zip(bars, class_percent.values):
-    plt.annotate(f"{pct:.1f}%", (bar.get_x() + bar.get_width()/2, bar.get_height()),
-                 textcoords="offset points", xytext=(0, 3),
-                 ha="center", fontsize=9)
-
-plt.tight_layout()
-plt.savefig(os.path.join(results_folder, "class_distribution.png"), dpi=300)
-plt.close()
+pretty_barplot(
+    np.array(class_labels_named),
+    class_counts.values,
+    f"Class Distribution ({DATASET_NAME})",
+    "Activity",
+    "Sample Count",
+    out / "class_distribution.png",
+    percent=class_percent.values,
+    y_scale_power=6   # ← shows (×10⁶) in label
+)
 
 # -----------------------------
 # 5. Subject distribution
 # -----------------------------
 subject_counts = df[subject_col].value_counts().sort_index()
-subject_percent = (df[subject_col].value_counts(normalize=True).sort_index() * 100)
+subject_percent = subject_counts / subject_counts.sum() * 100
 
-print("\nSubject counts:\n", subject_counts)
-print("\nSubject percent (%):\n", subject_percent.round(2))
+subject_counts.to_csv(out / "subject_distribution_counts.csv", header=["samples"])
+subject_percent.to_csv(out / "subject_distribution_percent.csv", header=["percent"])
 
-# Save to CSV
-subject_counts.to_csv(os.path.join(results_folder, "subject_distribution_counts.csv"), header=["count"])
-subject_percent.to_csv(os.path.join(results_folder, "subject_distribution_percent.csv"), header=["percent"])
-
-# Plot: subject imbalance
-if plot_top_k_subjects is not None:
-    to_plot = subject_counts.nlargest(plot_top_k_subjects)
+if plot_top_k_subjects:
+    subject_counts = subject_counts.nlargest(plot_top_k_subjects)
+    subject_percent = subject_percent.loc[subject_counts.index]
     title_suffix = f"(Top {plot_top_k_subjects})"
 else:
-    to_plot = subject_counts
     title_suffix = ""
 
-plt.figure(figsize=(14, 6))
-bars = plt.bar(to_plot.index.astype(str), to_plot.values)
-plt.xlabel("Subject")
-plt.ylabel("Count")
-plt.title(f"Subject Distribution {title_suffix}")
-plt.xticks(rotation=45, ha="right")
+pretty_barplot(
+    subject_counts.index.astype(str).values,
+    subject_counts.values,
+    f"Subject Distribution ({DATASET_NAME}) {title_suffix}",
+    "Subject ID",
+    "Sample Count",
+    out / "subject_distribution.png",
+    y_scale_power=5   # ← shows (×10⁵) in label
+)
 
-if len(to_plot) <= 50:
-    for bar in bars:
-        plt.annotate(f"{bar.get_height():.0f}",
-                     (bar.get_x() + bar.get_width()/2, bar.get_height()),
-                     textcoords="offset points", xytext=(0, 3),
-                     ha="center", fontsize=8)
-
-plt.tight_layout()
-plt.savefig(os.path.join(results_folder, "subject_distribution.png"), dpi=300)
-plt.close()
-
-print("\nAll CSV files and plots have been saved into:", results_folder)
+print("\nHARTH results saved to:", results_folder)
+print("Class distribution uses SAMPLE COUNTS (HAR-style).")

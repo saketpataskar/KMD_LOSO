@@ -1,0 +1,19 @@
+dataset:
+  name: "HARTH"   # HAR | HARTH
+  npz_path: "D:/DKE/KMD/KMD_LOSO/harth_windows.npz"
+
+experiment:
+  mode: "baseline"     # baseline | cv
+  device: "cuda"
+
+  model: "InceptionTime"     # CNN | LSTM | CNNLSTM | InceptionTime
+  cv_type: "GroupKFold"  # used only if mode = cv
+
+paths:
+  results_root:
+    HAR: "D:/DKE/KMD/KMD_LOSO/results"
+    HARTH: "D:/DKE/KMD/KMD_LOSO/results_harth"
+
+  baseline_root:
+    HAR: "D:/DKE/KMD/KMD_LOSO"
+    HARTH: "D:/DKE/KMD/KMD_LOSO"

@@ -1,47 +1,54 @@
 # run_harth_experiments.py
+import yaml
 from cv_engine import run_cv
 from baseline_engine import run_baseline
 
-NPZ_PATH = r"D:/DKE/KMD/KMD_LOSO/harth_windows.npz"
 
-# keep HARTH results separate from UCI HAR:
-RESULTS_ROOT = r"D:/DKE/KMD/KMD_LOSO/results_harth"
-
-# separate baseline dirs per MODEL for HARTH
-BASELINE_ROOT = r"D:/DKE/KMD/KMD_LOSO"
-
-DEVICE = "cuda"   # or "cpu" if you don’t have a GPU
-
-CV_TYPES = ["LOSO"]
-MODELS = ["LSTM"]
-#"Stratified" "GroupKFold" "LOSO"
+def load_config(path: str):
+    with open(path, "r") as f:
+        return yaml.safe_load(f)
 
 
 def main():
-    for model_name in MODELS:
+    cfg = load_config("config.yaml")
+
+    dataset_name = cfg["dataset"]["name"]
+    npz_path = cfg["dataset"]["npz_path"]
+
+    device = cfg["experiment"].get("device", "cuda")
+    models = cfg["experiment"]["models"]
+    cv_types = cfg["experiment"]["cv_types"]
+
+    results_root = cfg["paths"]["results_root"][dataset_name]
+    baseline_root = cfg["paths"]["baseline_root"][dataset_name]
+
+    baseline_enabled = cfg["baseline"].get("enabled", False)
+
+    for model_name in models:
         print("=" * 80)
-        print(f"Running HARTH experiments for model: {model_name}")
+        print(f"Running {dataset_name} experiments for model: {model_name}")
         print("=" * 80)
 
-        # # 1) Baseline (simple train/test split) – like before
-        # baseline_dir = f"{BASELINE_ROOT}/baseline_results_{model_name}_harth"
-        # print(f"\n[Baseline] {model_name} → {baseline_dir}")
-        # run_baseline(
-        #     NPZ_PATH,
-        #     baseline_dir,
-        #     model_name=model_name,
-        #     device=DEVICE
-        # )
+        # 1) Baseline (unchanged logic)
+        if baseline_enabled:
+            baseline_dir = f"{baseline_root}/baseline_results_{model_name}_{dataset_name.lower()}"
+            print(f"\n[Baseline] {model_name} → {baseline_dir}")
+            run_baseline(
+                npz_path,
+                baseline_dir,
+                model_name=model_name,
+                device=device
+            )
 
-        # 2) Cross-validation runs
-        for cv_type in CV_TYPES:
+        # 2) Cross-validation
+        for cv_type in cv_types:
             print(f"\n[CV] {cv_type} – {model_name}")
             run_cv(
-                NPZ_PATH,
-                RESULTS_ROOT,
+                npz_path,
+                results_root,
                 cv_type=cv_type,
                 model_name=model_name,
-                device=DEVICE
+                device=device
             )
 
 
